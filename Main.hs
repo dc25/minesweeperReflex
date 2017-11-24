@@ -3,52 +3,22 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 import Reflex
 import Reflex.Dom
-import Control.Monad.Random (RandomGen, Rand, runRand, getStdGen, getRandomR, split)
-import Control.Monad.Trans (liftIO)
-import Control.Monad.State (State, runState, get, put)
-import Data.Map (Map, toList, fromList, elems, insert, (!))
+import Control.Monad.Random (RandomGen, runRand, getStdGen, split)
+import Control.Monad.State (runState)
+import Data.Map (Map, fromList, elems)
 import Data.Text (Text, pack)
 import Data.List (unfoldr)
 
+import Msg
 import Pos
 import Svg
 import Smiley
 import Mine
 import Flag
-
-data Cell = Cell { mined :: Bool 
-                 , exposed :: Bool
-                 , flagged :: Bool
-                 , mineCount :: Int
-                 } deriving Show
-
-type Board = Map Pos Cell
-
-data Msg = LeftPick Pos | RightPick Pos 
-
-w :: Int
-w =  32
-
-h :: Int
-h = 16
+import Board
 
 cellSize :: Int
 cellSize = 20
-
-mkCell :: RandomGen g => Rand g Cell
-mkCell = do
-    t <- getRandomR (0.0::Float, 1.0)
-    return $ Cell (t < 0.201) False False 0
-
-initBoard :: RandomGen g => [Pos] -> Rand g Board
-initBoard positions = do
-    cells <- sequence $ repeat mkCell
-    return $ fromList (zip positions cells)
-
-mkBoard :: RandomGen g => Rand g Board
-mkBoard = do
-    let positions = [(x,y) | x <- [0..w-1], y <- [0..h-1]]   
-    initBoard positions
 
 getColor :: Cell -> String
 getColor (Cell _ exposed _ _) = if exposed then "#909090" else "#AAAAAA"
@@ -90,11 +60,11 @@ showText count = do
 
 showCellDetail :: MonadWidget t m => Pos -> Cell -> m [El t]
 showCellDetail pos (Cell mined exposed flagged mineCount) = 
-    case (  mined, exposed, flagged, 0 == mineCount) of
-         (      _,       _,    True,     _) -> showFlag pos 
-         (   True,    True,       _,     _) -> showMine pos 
-         (      _,    True,       _, False) -> showText mineCount
-         (      _,       _,       _,     _) -> return []
+    case ( flagged,   mined, exposed, 0 /= mineCount) of
+         (    True,       _,       _,       _) -> showFlag pos 
+         (       _,    True,    True,       _) -> showMine pos 
+         (       _,       _,    True,    True) -> showText mineCount
+         (       _,       _,       _,       _) -> return []
 
 mouseEv :: Reflex t => Pos -> El t -> [Event t Msg]
 mouseEv pos el = 
@@ -122,64 +92,6 @@ showAndReturnCell pos cell = do
     ev <- showCell pos cell
     return (ev,cell)
 
-adjacents :: Pos -> [Pos]
-adjacents (x,y) = 
-    [(xx,yy) | xx <- [x-1..x+1]
-             , yy <- [y-1..y+1]
-             , (xx,yy) /= (x,y)
-             , xx >= 0, yy >= 0
-             , xx < w, yy < h]
-
-exposeMines :: State Board [(Pos, Maybe Cell)]
-exposeMines = do
-    board <- get
-    let toExpose = filter (\(pos,cell) -> (not.exposed) cell && mined cell) $ toList board
-        modifications = fmap (\(p,c) -> (p, Just $ c {exposed = True})) toExpose
-    put $ foldl (\b (p,Just c) -> insert p c b) board modifications
-    return modifications 
-
-exposeSelection :: Pos -> Cell -> Int -> State Board [(Pos, Maybe Cell)]
-exposeSelection pos cell count = do
-    board <- get
-    let cell = board ! pos
-        toExpose = if flagged cell then [] else [(pos,cell)]
-        modifications = fmap (\(p,c) -> (p, Just $ c {exposed = True, mineCount = count})) toExpose
-    put $ foldl (\b (p,Just c) -> insert p c b) board modifications
-    return modifications 
-    
-exposeCells :: Pos -> State Board [(Pos, Maybe Cell)]
-exposeCells pos = do
-    board <- get
-    let cell@(Cell m e f mc) = board ! pos
-        indices = adjacents pos
-        count = length $ filter mined $ fmap (board !) indices
-        checkList = if m || e || f || count /= 0 then [] else indices 
-
-    exposedSelection <- exposeSelection pos cell count
-    exposedNeighbors <- mapM exposeCells checkList 
-    exposedMines <- if m then exposeMines else return []
-
-    return $ exposedSelection ++ concat exposedNeighbors ++ exposedMines
-
-update :: Msg -> State Board [(Pos, Maybe Cell)]
-update (LeftPick pos) = exposeCells pos
-
-update (RightPick pos ) = do
-    board <- get
-    let cell = board ! pos
-        modifications = if exposed cell 
-                        then [] -- can't flag a cell that's already exposed.  
-                        else [(pos, Just $ cell {flagged=not $ flagged cell})]
-    put $ foldl (\b (p,Just c) -> insert p c b) board modifications
-    return modifications
-
-reactToPick :: (Board,Msg) -> Map Pos (Maybe Cell)
-reactToPick (b,msg) = 
-    if gameOver b -- consolidating gameOver calls didn't affect perf.
-    then mempty
-    else let (resultList,_) = runState (update msg) b
-         in fromList resultList
-
 boardAttrs :: Map Text Text
 boardAttrs = fromList 
                  [ ("width" , pack $ show $ w * cellSize)
@@ -187,10 +99,12 @@ boardAttrs = fromList
                  , ("style" , "border:solid")
                  ]
 
-gameOver :: Board -> Bool
-gameOver = any (\cell -> exposed cell && mined cell) 
-
 centerStyle = fromList [ ("style", "width: 75%; margin: 0 auto;text-align:center;") ]
+
+reactToPick :: (Board,Msg) -> Map Pos (Maybe Cell)
+reactToPick (b,msg) = 
+    let (resultList,_) = runState (updateBoard msg) b
+    in fromList resultList
 
 boardWidget :: (RandomGen g) => (MonadWidget t m) => g -> m ()
 boardWidget g = do
