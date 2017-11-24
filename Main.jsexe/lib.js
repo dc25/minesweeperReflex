@@ -1,4 +1,4 @@
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -1150,12 +1150,50 @@ function h$ghcjsbn_showBase_rec(b, base, logBase, pad) {
 }
 // BigNat -> String (decimal)
 function h$ghcjsbn_show(b) {
-  throw new Error("show not implemented");
-  // digits =
+  return h$ghcjsbn_showBase(b, 10);
 }
 // BigNat -> String
 function h$ghcjsbn_showHex(b) {
-  throw new Error("showHex not implemented");
+  return h$ghcjsbn_showBase(b, 16);
+}
+function h$ghcjsbn_readBigNat(str) {
+  var m = /^\s*(\d+)\s*/.exec(str);
+  if(!m) return [0];
+  return h$ghcjsbn_readBigNatDigits(m[1]);
+}
+// the string may only contain digits
+function h$ghcjsbn_readBigNatDigits(digits) {
+  if(digits.length > 9) {
+    var h = (digits.length / 2)|0,
+        l = digits.substring(0, h),
+        r = digits.substring(h),
+        m = h$ghcjsbn_pow_ww(10, r.length),
+        bl = h$ghcjsbn_readBigNatDigits(l),
+        br = h$ghcjsbn_readBigNatDigits(r);
+    return h$ghcjsbn_add_bb(h$ghcjsbn_mul_bb(bl, m), br);
+  } else {
+    return h$ghcjsbn_mkBigNat_w(parseInt(digits));
+  }
+}
+function h$ghcjsbn_readInteger(str) {
+  var m = /^\s*-?([0-9]+)\s*/.exec(str);
+  if(!m) return null;
+  var digits = m[1];
+  var isNegative = str.indexOf('-') !== -1;
+  if(digits.length <= 9) {
+    if(isNegative) {
+      return (h$c1(h$integerzmgmpZCGHCziIntegerziTypeziSzh_con_e, (-parseInt(digits, 10))));;
+    } else {
+      return (h$c1(h$integerzmgmpZCGHCziIntegerziTypeziSzh_con_e, (parseInt(digits, 10))));;
+    }
+  } else {
+    var bn = h$ghcjsbn_readBigNat(digits);
+    if(isNegative) {
+      return (h$c1(h$integerzmgmpZCGHCziIntegerziTypeziJnzh_con_e, (bn)));;
+    } else {
+      return (h$c1(h$integerzmgmpZCGHCziIntegerziTypeziJpzh_con_e, (bn)));;
+    }
+  }
 }
 // s = b[l - 1];
 // normalize a number to length l by stripping unused leading digits
@@ -1857,7 +1895,7 @@ function h$ghcjsbn_encodeDouble_s(m, e) {
   h$ghcjsbn_assertValid_d(r, "encodeDouble_s result");
   return r;
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -1915,7 +1953,7 @@ function h$dom$sendXHR(xhr, d, cont) {
  xhr.send();
     }
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -2027,7 +2065,7 @@ function h$closeWebSocket(status, reason, ws) {
   }
   ws.close(status, reason);
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -2120,7 +2158,7 @@ function h$listToArray(xs) {
 function h$listToArrayWrap(xs) {
     return (h$c1(h$ghcjszmprimZCGHCJSziPrimziJSVal_con_e, (h$listToArray(xs))));
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -2170,7 +2208,7 @@ function h$animationFrameRequest(h) {
         }
     });
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -2227,7 +2265,7 @@ function h$releaseExport(e) {
   e.released = true;
   e.root = null;
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -2301,6 +2339,54 @@ var h$jsstringHead, h$jsstringTail, h$jsstringCons,
     h$jsstringSingleton, h$jsstringSnoc, h$jsstringUncons,
     h$jsstringIndex, h$jsstringUncheckedIndex,
     h$jsstringTake, h$jsstringDrop, h$jsstringTakeEnd, h$jsstringDropEnd;
+var h$fromCodePoint;
+if(String.prototype.fromCodePoint) {
+    h$fromCodePoint = String.fromCodePoint;
+} else {
+    // polyfill from https://github.com/mathiasbynens/String.fromCodePoint (MIT-license)
+    h$fromCodePoint =
+      (function() {
+          var stringFromCharCode = String.fromCharCode;
+          var floor = Math.floor;
+          return function(_) {
+              var MAX_SIZE = 0x4000;
+              var codeUnits = [];
+              var highSurrogate;
+              var lowSurrogate;
+              var index = -1;
+              var length = arguments.length;
+              if (!length) {
+                  return '';
+              }
+              var result = '';
+              while (++index < length) {
+                  var codePoint = Number(arguments[index]);
+                  if (
+                      !isFinite(codePoint) || // `NaN`, `+Infinity`, or `-Infinity`
+                      codePoint < 0 || // not a valid Unicode code point
+                      codePoint > 0x10FFFF || // not a valid Unicode code point
+                      floor(codePoint) != codePoint // not an integer
+                  ) {
+                      throw RangeError('Invalid code point: ' + codePoint);
+                  }
+                  if (codePoint <= 0xFFFF) { // BMP code point
+                      codeUnits.push(codePoint);
+                  } else { // Astral code point; split in surrogate halves
+                      // https://mathiasbynens.be/notes/javascript-encoding#surrogate-formulae
+                      codePoint -= 0x10000;
+                      highSurrogate = (codePoint >> 10) + 0xD800;
+                      lowSurrogate = (codePoint % 0x400) + 0xDC00;
+                      codeUnits.push(highSurrogate, lowSurrogate);
+                  }
+                  if (index + 1 == length || codeUnits.length > MAX_SIZE) {
+                      result += stringFromCharCode.apply(null, codeUnits);
+                      codeUnits.length = 0;
+                  }
+              }
+              return result;
+          }
+      })();
+}
 if(String.prototype.codePointAt) {
     h$jsstringSingleton = function(ch) {
         ;
@@ -2331,7 +2417,9 @@ if(String.prototype.codePointAt) {
     h$jsstringUncons = function(str) {
         ;
  var l = str.length;
- if(l===0) return -1;
+ if(l===0) {
+          { h$ret1 = (null); return (-1); };
+        }
  var ch = str.codePointAt(0);
         if(ch === undefined) {
      { h$ret1 = (null); return (-1); };
@@ -2389,7 +2477,9 @@ if(String.prototype.codePointAt) {
     h$jsstringUncons = function(str) {
         ;
  var l = str.length;
- if(l===0) return -1;
+ if(l===0) {
+          { h$ret1 = (null); return (-1); };
+        }
  var ch = str.charCodeAt(0);
  if(((ch|1023)===0xDBFF)) {
    if(l > 1) {
@@ -2420,13 +2510,13 @@ function h$jsstringPack(xs) {
  c = ((xs).d1);
  a[i++] = ((typeof(c) === 'number')?(c):(c).d1);
  if(i >= 60000) {
-     r += String.fromCharCode.apply(null, a);
+     r += h$fromCodePoint.apply(null, a);
      a = [];
      i = 0;
  }
  xs = ((xs).d2);
     }
-    if(i > 0) r += String.fromCharCode.apply(null, a);
+    if(i > 0) r += h$fromCodePoint.apply(null, a);
     ;
     return r;
 }
@@ -2452,11 +2542,11 @@ function h$jsstringPackArrayReverse(arr) {
 }
 function h$jsstringConvertArray(arr) {
     if(arr.length < 60000) {
- return String.fromCharCode.apply(null, arr);
+ return h$fromCodePoint.apply(null, arr);
     } else {
  var r = '';
  for(var i=0; i<arr.length; i+=60000) {
-     r += String.fromCharCode.apply(null, arr.slice(i, i+60000));
+     r += h$fromCodePoint.apply(null, arr.slice(i, i+60000));
  }
  return r;
     }
@@ -2948,6 +3038,16 @@ function h$jsstringUnpack(str) {
     }
     return r;
 }
+function h$jsstringDecInteger(val) {
+  ;
+  if(((val).f === h$integerzmgmpZCGHCziIntegerziTypeziSzh_con_e)) {
+    return '' + ((val).d1);
+  } else if(((val).f === h$integerzmgmpZCGHCziIntegerziTypeziJpzh_con_e)) {
+    return h$ghcjsbn_showBase(((val).d1), 10);
+  } else {
+    return '-' + h$ghcjsbn_showBase(((val).d1), 10);
+  }
+}
 function h$jsstringDecI64(hi,lo) {
     ;
     var lo0 = (lo < 0) ? lo+4294967296:lo;
@@ -2976,6 +3076,15 @@ function h$jsstringDecW64(hi,lo) {
     var x1 = (lo0 + x0) % 1000000;
     var x2 = hi0*4294+Math.floor((x0+lo0-x1)/1000000);
     return '' + x2 + h$jsstringDecIPadded6(x1);
+}
+function h$jsstringHexInteger(val) {
+  ;
+  if(((val).f === h$integerzmgmpZCGHCziIntegerziTypeziSzh_con_e)) {
+    return '' + ((val).d1);
+  } else {
+    // we assume it's nonnegative. this condition is checked by the Haskell code
+    return h$ghcjsbn_showBase(((val).d1), 16);
+  }
 }
 function h$jsstringHexI64(hi,lo) {
     var lo0 = lo<0 ? lo+4294967296 : lo;
@@ -3175,7 +3284,7 @@ function h$jsstringReadInteger(str) {
   } else if(str.length <= 9) {
     return (h$c1(h$integerzmgmpZCGHCziIntegerziTypeziSzh_con_e, (parseInt(str, 10))));;
   } else {
-    return MK_INTEGER_J(new BigInteger(str, 10));
+    return h$ghcjsbn_readInteger(str);
   }
 }
 function h$jsstringReadInt64(str) {
@@ -3249,7 +3358,7 @@ function h$jsstringSplitRE(limit, re, str) {
     while(--i>=0) r = (h$c2(h$ghczmprimZCGHCziTypesziZC_con_e, ((h$c1(h$ghcjszmprimZCGHCJSziPrimziJSVal_con_e, (a[i])))), (r)));
     return r;
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -3324,7 +3433,7 @@ function h$jsstringRawSplitAt(k, x) {
     if(k >= x.length) return (h$c2(h$ghczmprimZCGHCziTupleziZLz2cUZR_con_e,((h$c1(h$ghcjszmprimZCGHCJSziPrimziJSVal_con_e, (x)))),(h$jsstringEmpty)));
     return (h$c2(h$ghczmprimZCGHCziTupleziZLz2cUZR_con_e,((h$c1(h$ghcjszmprimZCGHCJSziPrimziJSVal_con_e, (x.substr(0,k))))),((h$c1(h$ghcjszmprimZCGHCJSziPrimziJSVal_con_e, (x.substr(k)))))));
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -3365,7 +3474,7 @@ function h$foreignListProps(o) {
 
     } */
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -3470,7 +3579,7 @@ function h$safeTextFromString(x) {
     }
     return h$textFromString(x);
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -3607,7 +3716,7 @@ function h$jsonTypeOf(o) {
         }
     }
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -3656,87 +3765,7 @@ function h$sendXHR(xhr, d, cont) {
  xhr.send();
     }
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
-   This file is part of the GNU C Library.
-
-   The GNU C Library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
-
-   The GNU C Library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Lesser General Public License for more details.
-
-   You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, see
-   <http://www.gnu.org/licenses/>.  */
-/* This header is separate from features.h so that the compiler can
-   include it implicitly at the start of every compilation.  It must
-   not itself include <features.h> or any other header that includes
-   <features.h> because the implicit include comes before any feature
-   test macros that may be defined in a source file before it first
-   explicitly includes a system header.  GCC knows the name of this
-   header in order to preinclude it.  */
-/* glibc's intent is to support the IEC 559 math functionality, real
-   and complex.  If the GCC (4.9 and later) predefined macros
-   specifying compiler intent are available, use them to determine
-   whether the overall intent is to support these features; otherwise,
-   presume an older compiler has intent to support these features and
-   define these macros by default.  */
-/* wchar_t uses Unicode 8.0.0.  Version 8.0 of the Unicode Standard is
-   synchronized with ISO/IEC 10646:2014, plus Amendment 1 (published
-   2015-05-15).  */
-/* We do not support C11 <threads.h>.  */
-function h$hsprimitive_memcpy(dst_d, dst_o, doff, src_d, src_o, soff, len) {
-  return h$primitive_memmove(dst_d, dst_o, doff, src_d, src_o, len);
-}
-function h$hsprimitive_memmove(dst_d, dst_o, doff, src_d, src_o, soff, len) {
-  if(len === 0) return;
-  var du8 = dst_d.u8, su8 = src_d.u8;
-  for(var i=len-1;i>=0;i--) {
-    du8[dst_o+i] = su8[src_o+i];
-  }
-}
-function h$hsprimitive_memsetba_Word8 (p_d, off, n, x) { if(n > 0) { if(p_d.u8.fill) p_d.u8.fill(x, off, off + n); else for(var i=off; i<off+n; i++) p_d.u8[i] = x; } }
-function h$hsprimitive_memsetba_Word16 (p_d, off, n, x) { if(n > 0) { if(p_d.u1.fill) p_d.u1.fill(x, off, off + n); else for(var i=off; i<off+n; i++) p_d.u1[i] = x; } }
-function h$hsprimitive_memsetba_Word32 (p_d, off, n, x) { if(n > 0) { if(p_d.i3.fill) p_d.i3.fill(x, off, off + n); else for(var i=off; i<off+n; i++) p_d.i3[i] = x; } }
-function h$hsprimitive_memsetba_Word (p_d, off, n, x) { if(n > 0) { if(p_d.i3.fill) p_d.i3.fill(x, off, off + n); else for(var i=off; i<off+n; i++) p_d.i3[i] = x; } }
-function h$hsprimitive_memsetba_Float (p_d, off, n, x) { if(n > 0) { if(p_d.f3.fill) p_d.f3.fill(x, off, off + n); else for(var i=off; i<off+n; i++) p_d.f3[i] = x; } }
-function h$hsprimitive_memsetba_Double (p_d, off, n, x) { if(n > 0) { if(p_d.f6.fill) p_d.f6.fill(x, off, off + n); else for(var i=off; i<off+n; i++) p_d.f6[i] = x; } }
-function h$hsprimitive_memsetba_Char (p_d, off, n, x) { if(n > 0) { if(p_d.i3.fill) p_d.i3.fill(x, off, off + n); else for(var i=off; i<off+n; i++) p_d.i3[i] = x; } }
-function h$hsprimitive_memset_Word8 (p_d, p_o, off, n, x) { var start = (p_o >> 0) + off; if(n > 0) { if(p_d.u8.fill) p_d.u8.fill(x, start, start + n); else for(var i=start; i<start+n; i++) p_d.u8[i] = x; } }
-function h$hsprimitive_memset_Word16 (p_d, p_o, off, n, x) { var start = (p_o >> 1) + off; if(n > 0) { if(p_d.u1.fill) p_d.u1.fill(x, start, start + n); else for(var i=start; i<start+n; i++) p_d.u1[i] = x; } }
-function h$hsprimitive_memset_Word32 (p_d, p_o, off, n, x) { var start = (p_o >> 2) + off; if(n > 0) { if(p_d.i3.fill) p_d.i3.fill(x, start, start + n); else for(var i=start; i<start+n; i++) p_d.i3[i] = x; } }
-function h$hsprimitive_memset_Word (p_d, p_o, off, n, x) { var start = (p_o >> 2) + off; if(n > 0) { if(p_d.i3.fill) p_d.i3.fill(x, start, start + n); else for(var i=start; i<start+n; i++) p_d.i3[i] = x; } }
-function h$hsprimitive_memset_Float (p_d, p_o, off, n, x) { var start = (p_o >> 2) + off; if(n > 0) { if(p_d.f3.fill) p_d.f3.fill(x, start, start + n); else for(var i=start; i<start+n; i++) p_d.f3[i] = x; } }
-function h$hsprimitive_memset_Double (p_d, p_o, off, n, x) { var start = (p_o >> 3) + off; if(n > 0) { if(p_d.f6.fill) p_d.f6.fill(x, start, start + n); else for(var i=start; i<start+n; i++) p_d.f6[i] = x; } }
-function h$hsprimitive_memset_Char (p_d, p_o, off, n, x) { var start = (p_o >> 2) + off; if(n > 0) { if(p_d.i3.fill) p_d.i3.fill(x, start, start + n); else for(var i=start; i<start+n; i++) p_d.i3[i] = x; } }
-function h$hsprimitive_memsetba_Word64(p_d, off, n, x_1, x_2) {
-  h$hsprimitive_memset_Word64(p_d, 0, off, n, x_1, x_2);
-}
-function h$hsprimitive_memset_Word64(p_d, p_o, off, n, x_1, x_2) {
-  var start = (p_o >> 3) + off;
-  if(n > 0) {
-    var pi3 = p_d.i3;
-    for(var i = 0; i < n; i++) {
-      var o = (start + i) << 1;
-      pi3[o] = x_1;
-      pi3[o+1] = x_2;
-    }
-  }
-}
-function h$hsprimitive_memset_Ptr(p_d, p_o, off, n, x_1, x_2) {
-  if(n > 0) {
-    if(!p_d.arr) p_d.arr = [];
-    var a = p_d.arr;
-    for(var i = 0; i < n; i++) {
-      a[p_o + ((off + i) << 2)] = [x_1, x_2];
-    }
-  }
-}
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -3827,7 +3856,7 @@ goog.crypt.Hash.prototype.update = goog.abstractMethod;
  *     from the internal accumulator.
  */
 goog.crypt.Hash.prototype.digest = goog.abstractMethod;
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -4259,7 +4288,7 @@ goog.crypt.Md5.prototype.digest = function() {
   }
   return digest;
 };
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -5084,7 +5113,87 @@ function h$shutdownHaskellAndExit(code, fast) {
 function h$rand() {
   return (32768 * Math.random()) & 32767;
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
+   This file is part of the GNU C Library.
+
+   The GNU C Library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
+
+   The GNU C Library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU C Library; if not, see
+   <http://www.gnu.org/licenses/>.  */
+/* This header is separate from features.h so that the compiler can
+   include it implicitly at the start of every compilation.  It must
+   not itself include <features.h> or any other header that includes
+   <features.h> because the implicit include comes before any feature
+   test macros that may be defined in a source file before it first
+   explicitly includes a system header.  GCC knows the name of this
+   header in order to preinclude it.  */
+/* glibc's intent is to support the IEC 559 math functionality, real
+   and complex.  If the GCC (4.9 and later) predefined macros
+   specifying compiler intent are available, use them to determine
+   whether the overall intent is to support these features; otherwise,
+   presume an older compiler has intent to support these features and
+   define these macros by default.  */
+/* wchar_t uses Unicode 8.0.0.  Version 8.0 of the Unicode Standard is
+   synchronized with ISO/IEC 10646:2014, plus Amendment 1 (published
+   2015-05-15).  */
+/* We do not support C11 <threads.h>.  */
+function h$hsprimitive_memcpy(dst_d, dst_o, doff, src_d, src_o, soff, len) {
+  return h$primitive_memmove(dst_d, dst_o, doff, src_d, src_o, len);
+}
+function h$hsprimitive_memmove(dst_d, dst_o, doff, src_d, src_o, soff, len) {
+  if(len === 0) return;
+  var du8 = dst_d.u8, su8 = src_d.u8;
+  for(var i=len-1;i>=0;i--) {
+    du8[dst_o+i] = su8[src_o+i];
+  }
+}
+function h$hsprimitive_memsetba_Word8 (p_d, off, n, x) { if(n > 0) { if(p_d.u8.fill) p_d.u8.fill(x, off, off + n); else for(var i=off; i<off+n; i++) p_d.u8[i] = x; } }
+function h$hsprimitive_memsetba_Word16 (p_d, off, n, x) { if(n > 0) { if(p_d.u1.fill) p_d.u1.fill(x, off, off + n); else for(var i=off; i<off+n; i++) p_d.u1[i] = x; } }
+function h$hsprimitive_memsetba_Word32 (p_d, off, n, x) { if(n > 0) { if(p_d.i3.fill) p_d.i3.fill(x, off, off + n); else for(var i=off; i<off+n; i++) p_d.i3[i] = x; } }
+function h$hsprimitive_memsetba_Word (p_d, off, n, x) { if(n > 0) { if(p_d.i3.fill) p_d.i3.fill(x, off, off + n); else for(var i=off; i<off+n; i++) p_d.i3[i] = x; } }
+function h$hsprimitive_memsetba_Float (p_d, off, n, x) { if(n > 0) { if(p_d.f3.fill) p_d.f3.fill(x, off, off + n); else for(var i=off; i<off+n; i++) p_d.f3[i] = x; } }
+function h$hsprimitive_memsetba_Double (p_d, off, n, x) { if(n > 0) { if(p_d.f6.fill) p_d.f6.fill(x, off, off + n); else for(var i=off; i<off+n; i++) p_d.f6[i] = x; } }
+function h$hsprimitive_memsetba_Char (p_d, off, n, x) { if(n > 0) { if(p_d.i3.fill) p_d.i3.fill(x, off, off + n); else for(var i=off; i<off+n; i++) p_d.i3[i] = x; } }
+function h$hsprimitive_memset_Word8 (p_d, p_o, off, n, x) { var start = (p_o >> 0) + off; if(n > 0) { if(p_d.u8.fill) p_d.u8.fill(x, start, start + n); else for(var i=start; i<start+n; i++) p_d.u8[i] = x; } }
+function h$hsprimitive_memset_Word16 (p_d, p_o, off, n, x) { var start = (p_o >> 1) + off; if(n > 0) { if(p_d.u1.fill) p_d.u1.fill(x, start, start + n); else for(var i=start; i<start+n; i++) p_d.u1[i] = x; } }
+function h$hsprimitive_memset_Word32 (p_d, p_o, off, n, x) { var start = (p_o >> 2) + off; if(n > 0) { if(p_d.i3.fill) p_d.i3.fill(x, start, start + n); else for(var i=start; i<start+n; i++) p_d.i3[i] = x; } }
+function h$hsprimitive_memset_Word (p_d, p_o, off, n, x) { var start = (p_o >> 2) + off; if(n > 0) { if(p_d.i3.fill) p_d.i3.fill(x, start, start + n); else for(var i=start; i<start+n; i++) p_d.i3[i] = x; } }
+function h$hsprimitive_memset_Float (p_d, p_o, off, n, x) { var start = (p_o >> 2) + off; if(n > 0) { if(p_d.f3.fill) p_d.f3.fill(x, start, start + n); else for(var i=start; i<start+n; i++) p_d.f3[i] = x; } }
+function h$hsprimitive_memset_Double (p_d, p_o, off, n, x) { var start = (p_o >> 3) + off; if(n > 0) { if(p_d.f6.fill) p_d.f6.fill(x, start, start + n); else for(var i=start; i<start+n; i++) p_d.f6[i] = x; } }
+function h$hsprimitive_memset_Char (p_d, p_o, off, n, x) { var start = (p_o >> 2) + off; if(n > 0) { if(p_d.i3.fill) p_d.i3.fill(x, start, start + n); else for(var i=start; i<start+n; i++) p_d.i3[i] = x; } }
+function h$hsprimitive_memsetba_Word64(p_d, off, n, x_1, x_2) {
+  h$hsprimitive_memset_Word64(p_d, 0, off, n, x_1, x_2);
+}
+function h$hsprimitive_memset_Word64(p_d, p_o, off, n, x_1, x_2) {
+  var start = (p_o >> 3) + off;
+  if(n > 0) {
+    var pi3 = p_d.i3;
+    for(var i = 0; i < n; i++) {
+      var o = (start + i) << 1;
+      pi3[o] = x_1;
+      pi3[o+1] = x_2;
+    }
+  }
+}
+function h$hsprimitive_memset_Ptr(p_d, p_o, off, n, x_1, x_2) {
+  if(n > 0) {
+    if(!p_d.arr) p_d.arr = [];
+    var a = p_d.arr;
+    for(var i = 0; i < n; i++) {
+      a[p_o + ((off + i) << 2)] = [x_1, x_2];
+    }
+  }
+}
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -5144,7 +5253,7 @@ function h$clock_gettime(when, p_d, p_o) {
   p_d.i3[o+1] = tn|0;
   return 0;
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -5259,7 +5368,7 @@ a=(e&16777215)+(q&16777215)+17;b=(a>>>24)+(e>>>24)+(q>>>24)+0+((f&65535)<<8)+((p
 65535)<<8)+((d&65535)<<8);l=((b>>>24)+(l>>>16)+(d>>>16)<<16)+(b>>8&65535);g=b<<24|a&16777215;a=d;d=(c<<26|d>>>6)^l;c=(a<<26|c>>>6)^g;a=(h&16777215)+(e&16777215);b=(a>>>24)+(h>>>24)+(e>>>24)+((k&65535)<<8)+((f&65535)<<8);k=((b>>>24)+(k>>>16)+(f>>>16)<<16)+(b>>8&65535);h=b<<24|a&16777215;a=f;f=(f<<22|e>>>10)^k;e=(e<<22|a>>>10)^h;a=(g&16777215)+(e&16777215);b=(a>>>24)+(g>>>24)+(e>>>24)+((l&65535)<<8)+((f&65535)<<8);l=((b>>>24)+(l>>>16)+(f>>>16)<<16)+(b>>8&65535);g=b<<24|a&16777215;a=f;f=e^l;e=a^g;a=
 (h&16777215)+(c&16777215);b=(a>>>24)+(h>>>24)+(c>>>24)+((k&65535)<<8)+((d&65535)<<8);k=((b>>>24)+(k>>>16)+(d>>>16)<<16)+(b>>8&65535);h=b<<24|a&16777215;a=d;d=c^k;c=a^h;a=(g&16777215)+(n&16777215);b=(a>>>24)+(g>>>24)+(n>>>24)+((l&65535)<<8)+((m&65535)<<8);l=((b>>>24)+(l>>>16)+(m>>>16)<<16)+(b>>8&65535);g=b<<24|a&16777215;a=(c&16777215)+(w&16777215)+0;b=(a>>>24)+(c>>>24)+(w>>>24)+0+((d&65535)<<8)+((x&65535)<<8)+0;d=((b>>>24)+(d>>>16)+(x>>>16)+0<<16)+(b>>8&65535);c=b<<24|a&16777215;a=(h&16777215)+(q&
 16777215)+0;b=(a>>>24)+(h>>>24)+(q>>>24)+0+((k&65535)<<8)+((p&65535)<<8)+0;k=((b>>>24)+(k>>>16)+(p>>>16)+0<<16)+(b>>8&65535);h=b<<24|a&16777215;a=(e&16777215)+(r&16777215)+18;b=(a>>>24)+(e>>>24)+(r>>>24)+0+((f&65535)<<8)+((t&65535)<<8)+0;y[0]=g;y[1]=l;y[2]=c;y[3]=d;y[4]=h;y[5]=k;y[6]=b<<24|a&16777215;y[7]=((b>>>24)+(f>>>16)+(t>>>16)+0<<16)+(b>>8&65535)};"undefined"!==typeof exports&&(exports.h$Threefish_256_Process_Block=h$Threefish_256_Process_Block);
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -5506,7 +5615,7 @@ function h$_hs_text_encode_utf8(destp_v, destp_o, src_v, srcoff, srclen) {
   }
   destp_v.arr[destp_o][1] = dest;
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -5566,46 +5675,7 @@ function h$hashable_getRandomBytes(dest_d, dest_o, len) {
   }
   return len;
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
-   This file is part of the GNU C Library.
-
-   The GNU C Library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
-
-   The GNU C Library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Lesser General Public License for more details.
-
-   You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, see
-   <http://www.gnu.org/licenses/>.  */
-/* This header is separate from features.h so that the compiler can
-   include it implicitly at the start of every compilation.  It must
-   not itself include <features.h> or any other header that includes
-   <features.h> because the implicit include comes before any feature
-   test macros that may be defined in a source file before it first
-   explicitly includes a system header.  GCC knows the name of this
-   header in order to preinclude it.  */
-/* glibc's intent is to support the IEC 559 math functionality, real
-   and complex.  If the GCC (4.9 and later) predefined macros
-   specifying compiler intent are available, use them to determine
-   whether the overall intent is to support these features; otherwise,
-   presume an older compiler has intent to support these features and
-   define these macros by default.  */
-/* wchar_t uses Unicode 8.0.0.  Version 8.0 of the Unicode Standard is
-   synchronized with ISO/IEC 10646:2014, plus Amendment 1 (published
-   2015-05-15).  */
-/* We do not support C11 <threads.h>.  */
-function h$ghcjs_currentWindow() {
-  return window;
-};
-function h$ghcjs_currentDocument() {
-  return document;
-};
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -5704,16 +5774,6 @@ function h$typeOf(o) {
         }
     }
 }
-function h$listProps(o) {
-    if (!(o instanceof Object)) {
-        return [];
-    }
-    var l = [], i = 0;
-    for (var prop in o) {
-        l[i++] = prop;
-    }
-    return l;
-}
 function h$flattenObj(o) {
     var l = [], i = 0;
     for (var prop in o) {
@@ -5766,7 +5826,7 @@ function h$buildObjectFromTupList(xs) {
     }
     return r;
 }
-/* Copyright (C) 1991-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or

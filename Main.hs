@@ -1,57 +1,63 @@
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+
+import Control.Monad.Random (RandomGen, getStdGen, runRand, split)
+import Control.Monad.State (runState)
+import Data.List (unfoldr)
+import Data.Map (Map, elems, fromList)
+import Data.Text (Text, pack)
 import Reflex
 import Reflex.Dom
-import Control.Monad.Random (RandomGen, runRand, getStdGen, split)
-import Control.Monad.State (runState)
-import Data.Map (Map, fromList, elems)
-import Data.Text (Text, pack)
-import Data.List (unfoldr)
 
+import Board
+import Flag
+import Mine
 import Msg
 import Pos
-import Svg
 import Smiley
-import Mine
-import Flag
-import Board
+import Svg
 
 cellSize :: Int
 cellSize = 20
 
 getColor :: Cell -> String
-getColor (Cell _ exposed _ _) = if exposed then "#909090" else "#AAAAAA"
+getColor (Cell _ exposed _ _) =
+    if exposed
+        then "#909090"
+        else "#AAAAAA"
 
 squareAttrs :: Cell -> Map Text Text
 squareAttrs cell =
-    fromList [ ( "x",            "0.05")
-             , ( "y",            "0.05")
-             , ( "width",        "0.9")
-             , ( "height",       "0.9")
-             , ( "style",        pack $ "fill:" ++ getColor cell)
-             ]
+    fromList
+        [ ("x", "0.05")
+        , ("y", "0.05")
+        , ("width", "0.9")
+        , ("height", "0.9")
+        , ("style", pack $ "fill:" ++ getColor cell)
+        ]
 
 showSquare :: MonadWidget t m => Cell -> m [El t]
 showSquare cell = do
-    (rEl,_) <- elSvgns "rect" (constDyn $ squareAttrs cell) $ return ()
+    (rEl, _) <- elSvgns "rect" (constDyn $ squareAttrs cell) $ return ()
     return [rEl]
 
 textAttrs :: Int -> Map Text Text
-textAttrs count = 
-    let textColor :: Text = case count of
-                                1 -> "blue"
-                                2 -> "green"
-                                3 -> "red"
-                                4 -> "brown"
-                                _ -> "purple"
-
-    in fromList [ ("x",             "0.5")
-                , ("y",             "0.87")
-                , ("font-size",     "1.0" )
-                , ("fill",          textColor )
-                , ("text-anchor",   "middle" )
-                ] 
+textAttrs count =
+    let textColor :: Text =
+            case count of
+                1 -> "blue"
+                2 -> "green"
+                3 -> "red"
+                4 -> "brown"
+                _ -> "purple"
+    in fromList
+           [ ("x", "0.5")
+           , ("y", "0.87")
+           , ("font-size", "1.0")
+           , ("fill", textColor)
+           , ("text-anchor", "middle")
+           ]
 
 showText :: MonadWidget t m => Int -> m [El t]
 showText count = do
@@ -59,80 +65,83 @@ showText count = do
     return []
 
 showCellDetail :: MonadWidget t m => Pos -> Cell -> m [El t]
-showCellDetail pos (Cell mined exposed flagged mineCount) = 
-    case ( flagged,   mined, exposed, 0 /= mineCount) of
-         (    True,       _,       _,       _) -> showFlag pos 
-         (       _,    True,    True,       _) -> showMine pos 
-         (       _,       _,    True,    True) -> showText mineCount
-         (       _,       _,       _,       _) -> return []
+showCellDetail pos (Cell mined exposed flagged mineCount) =
+    case (flagged, mined, exposed, 0 /= mineCount) of
+        (True, _, _, _) -> showFlag pos
+        (_, True, True, _) -> showMine pos
+        (_, _, True, True) -> showText mineCount
+        (_, _, _, _) -> return []
 
 mouseEv :: Reflex t => Pos -> El t -> [Event t Msg]
-mouseEv pos el = 
+mouseEv pos el =
     let r_rEv = RightPick pos <$ domEvent Contextmenu el
-        l_rEv = LeftPick  pos <$ domEvent Click       el
+        l_rEv = LeftPick pos <$ domEvent Click el
     in [l_rEv, r_rEv]
 
 groupAttrs :: Pos -> Map Text Text
-groupAttrs (x,y) = 
-    fromList [ ("transform", 
-                pack $    "scale (" ++ show cellSize ++ ", " ++ show cellSize ++ ") " 
-                       ++ "translate (" ++ show x ++ ", " ++ show y ++ ")" 
-               )
-             ] 
+groupAttrs (x, y) =
+    fromList
+        [ ( "transform"
+          , pack $
+            "scale (" ++
+            show cellSize ++
+            ", " ++
+            show cellSize ++
+            ") " ++ "translate (" ++ show x ++ ", " ++ show y ++ ")")
+        ]
 
 showCell :: MonadWidget t m => Pos -> Cell -> m (Event t Msg)
-showCell pos cell = 
-    fmap snd $ elSvgns "g"  (constDyn $ groupAttrs pos) $ do
+showCell pos cell =
+    fmap snd $
+    elSvgns "g" (constDyn $ groupAttrs pos) $ do
         rEl <- showSquare cell
-        dEl <- showCellDetail pos cell 
+        dEl <- showCellDetail pos cell
         return $ leftmost $ concatMap (mouseEv pos) (rEl ++ dEl)
 
 showAndReturnCell :: MonadWidget t m => Pos -> Cell -> m (Event t Msg, Cell)
 showAndReturnCell pos cell = do
     ev <- showCell pos cell
-    return (ev,cell)
+    return (ev, cell)
 
 boardAttrs :: Map Text Text
-boardAttrs = fromList 
-                 [ ("width" , pack $ show $ w * cellSize)
-                 , ("height", pack $ show $ h * cellSize)
-                 , ("style" , "border:solid")
-                 ]
+boardAttrs =
+    fromList
+        [ ("width", pack $ show $ w * cellSize)
+        , ("height", pack $ show $ h * cellSize)
+        , ("style", "border:solid")
+        ]
 
-centerStyle = fromList [ ("style", "width: 75%; margin: 0 auto;text-align:center;") ]
+centerStyle =
+    fromList [("style", "width: 75%; margin: 0 auto;text-align:center;")]
 
-reactToPick :: (Board,Msg) -> Map Pos (Maybe Cell)
-reactToPick (b,msg) = 
-    let (resultList,_) = runState (updateBoard msg) b
+reactToPick :: (Board, Msg) -> Map Pos (Maybe Cell)
+reactToPick (b, msg) =
+    let (resultList, _) = runState (updateBoard msg) b
     in fromList resultList
 
 boardWidget :: (RandomGen g) => (MonadWidget t m) => g -> m ()
 boardWidget g = do
-    let (initial, _)  = runRand mkBoard g
-    rec 
-        elAttr "div" centerStyle $ 
-            dyn (fmap (showFace.gameOver) board )
-
+    let (initial, _) = runRand mkBoard g
+    rec elAttr "div" centerStyle $ dyn (fmap (showFace . gameOver) board)
         let pick = switch $ (leftmost . elems) <$> current eventMap
             pickWithCells = attachPromptlyDynWith (,) board pick
             updateEv = fmap reactToPick pickWithCells
-
-        (_, eventAndCellMap ) <- 
-            elAttr "div" centerStyle $ 
-                elSvgns "svg" (constDyn boardAttrs) $ 
-                    listHoldWithKey initial updateEv showAndReturnCell 
-
+        (_, eventAndCellMap) <-
+            elAttr "div" centerStyle $
+            elSvgns "svg" (constDyn boardAttrs) $
+            listHoldWithKey initial updateEv showAndReturnCell
         let board = fmap (fmap snd) eventAndCellMap
             eventMap = fmap (fmap fst) eventAndCellMap
     return ()
 
 main :: IO ()
-main = do 
+main = do
     g <- getStdGen
     let (gh:gs) = unfoldr (Just . split) g -- list of generators
-    mainWidget $ do
-        rec -- 'rec' only here to get reset below board
-            bEv <- zipListWithEvent const (fmap boardWidget gs) rEv
+    mainWidget $
+            -- 'rec' only here to get reset below board
+     do
+        rec bEv <- zipListWithEvent const (fmap boardWidget gs) rEv
             widgetHold (boardWidget gh) bEv
             rEv <- elAttr "div" centerStyle $ button "Reset"
         return ()
