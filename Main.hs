@@ -66,11 +66,11 @@ showText count = do
 
 showCellDetail :: MonadWidget t m => Pos -> Cell -> m [El t]
 showCellDetail pos (Cell mined exposed flagged mineCount) =
-    case (flagged, mined, exposed, 0 /= mineCount) of
-        (True, _, _, _) -> showFlag pos
-        (_, True, True, _) -> showMine pos
-        (_, _, True, True) -> showText mineCount
-        (_, _, _, _) -> return []
+    case ( flagged,    mined, exposed, 0 /= mineCount) of
+         (    True,       _,       _,       _) -> showFlag pos
+         (       _,    True,    True,       _) -> showMine pos
+         (       _,       _,    True,    True) -> showText mineCount
+         (       _,       _,       _,       _) -> return []
 
 mouseEv :: Reflex t => Pos -> El t -> [Event t Msg]
 mouseEv pos el =
