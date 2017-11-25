@@ -25,7 +25,7 @@ getColor :: Cell -> String
 getColor (Cell _ exposed _ _) =
     if exposed
         then "#909090"
-        else "#AAAAAA"
+        else "#CCCCCC"
 
 squareAttrs :: Cell -> Map Text Text
 squareAttrs cell =
