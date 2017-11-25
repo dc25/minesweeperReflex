@@ -11,14 +11,14 @@ ghcjs-base-0.2.0.0-EbNCXkMU3wYGkRTGfIIwqK:3942
 ghcjs-dom-jsffi-0.9.2.0-oQK3s8H3L7KVIjjnFxIQj:100456
 ghcjs-prim-0.1.0.0-GUpdXu72Ynv3kgdbcUykWj:10696
 integer-gmp:             85922
-main:                    151649
+main:                    150287
 mtl-2.2.1-HaVQXdYUbm1BzxKWcqmtoJ:1872
 primitive-0.6.1.0-DJQCGSRhr6sEACT4OLYAIv:814
 random-1.1-K4Uhdn1omLBF2RPegYvPlz:38031
 ref-tf-0.4.0.1-6Qjbvsaiat47ht7VlAdHc1:1286
 reflex-0.5.0-BtiMW3baTAy9W8VsIS1nYo:1428755
 reflex-dom-0.4-8EzgNQiaVSgA0KwnlajeFR:209
-reflex-dom-core-0.4-AsICuXIuIxoHQSQWSBqjqR:1014833
+reflex-dom-core-0.4-AsICuXIuIxoHQSQWSBqjqR:1014821
 text-1.2.2.1-AbwmG88fhEHfGAxpKl2ce:3852
 these-0.7.3-LvRflWUbFDoHiXYJDA1jKS:2965
 time-1.6.0.1-EHDmCdhr8DyAvdpYRjsR4e:6796
@@ -155,7 +155,7 @@ main
     Board:                              33957
     Flag:                               8077
     Main:                               61794
-    Mine:                               9461
+    Mine:                               8099
     Msg:                                339
     Pos:                                1
     Smiley:                             34017
@@ -209,7 +209,7 @@ reflex-dom-core-0.4-AsICuXIuIxoHQSQWSBqjqR
     Reflex.Dom.Main:                    57251
     Reflex.Dom.Old:                     1301
     Reflex.Dom.Specializations:         9516
-    Reflex.Dom.Widget.Basic:            103094
+    Reflex.Dom.Widget.Basic:            103082
 
 text-1.2.2.1-AbwmG88fhEHfGAxpKl2ce
     Data.Text:                          3732
@@ -231,5 +231,5 @@ transformers-0.5.2.0-5gllrcfRr8uHE8UsCDGSd7
 
 
 
-packed metadata: 735540
+packed metadata: 735449
 

@@ -30,5 +30,4 @@ showMine pos = do
                 , ("oncontextmenu", "return false;")
                 ]
     (sEl, _) <- elSvgns "polygon" (constDyn stemAttrs) $ return ()
-    (fEl, _) <- elSvgns "circle" (constDyn mineAttrs) $ return ()
     return [cEl, sEl]
