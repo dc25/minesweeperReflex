@@ -80,15 +80,12 @@ mouseEv pos el =
 
 groupAttrs :: Pos -> Map Text Text
 groupAttrs (x, y) =
-    fromList
-        [ ( "transform"
-          , pack $
-            "scale (" ++
-            show cellSize ++
-            ", " ++
-            show cellSize ++
-            ") " ++ "translate (" ++ show x ++ ", " ++ show y ++ ")")
-        ]
+    let scale = show cellSize
+    in fromList
+           [ ( "transform" 
+             , pack $    "scale (" ++ scale ++ ", " ++ scale ++ ") " 
+                      ++ "translate (" ++ show x ++ ", " ++ show y ++ ")")
+           ]
 
 showCell :: MonadWidget t m => Pos -> Cell -> m (Event t Msg)
 showCell pos cell =
@@ -106,9 +103,9 @@ showAndReturnCell pos cell = do
 boardAttrs :: Map Text Text
 boardAttrs =
     fromList
-        [ ("width", pack $ show $ w * cellSize)
+        [ ("width",  pack $ show $ w * cellSize)
         , ("height", pack $ show $ h * cellSize)
-        , ("style", "border:solid")
+        , ("style",  "border:solid")
         ]
 
 centerStyle =
@@ -123,6 +120,7 @@ boardWidget :: (RandomGen g) => (MonadWidget t m) => g -> m ()
 boardWidget g = do
     let (initial, _) = runRand mkBoard g
     rec elAttr "div" centerStyle $ dyn (fmap (showFace . gameOver) board)
+        elAttr "div" centerStyle $ text "Implemented using Reflex"
         let pick = switch $ (leftmost . elems) <$> current eventMap
             pickWithCells = attachPromptlyDynWith (,) board pick
             updateEv = fmap reactToPick pickWithCells
@@ -139,8 +137,8 @@ main = do
     g <- getStdGen
     let (gh:gs) = unfoldr (Just . split) g -- list of generators
     mainWidget $
-            -- 'rec' only here to get reset below board
      do
+        -- 'rec' only here to get reset below board
         rec bEv <- zipListWithEvent const (fmap boardWidget gs) rEv
             widgetHold (boardWidget gh) bEv
             rEv <- elAttr "div" centerStyle $ button "Reset"
