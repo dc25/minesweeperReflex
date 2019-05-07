@@ -1,6 +1,7 @@
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE MonoLocalBinds #-}
 
 import Control.Monad.Random (RandomGen, getStdGen, runRand, split)
 import Control.Monad.State (runState)
