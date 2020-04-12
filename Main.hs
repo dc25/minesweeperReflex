@@ -142,5 +142,7 @@ main = do
         -- 'rec' only here to get reset below board
         rec bEv <- zipListWithEvent const (fmap boardWidget gs) rEv
             widgetHold (boardWidget gh) bEv
-            rEv <- elAttr "div" centerStyle $ button "Reset"
+            let btnElement = fst <$> (el' "button" $ text "Reset")
+            let btnEvent = domEvent Click <$> btnElement
+            rEv <- elAttr "div" centerStyle btnEvent
         return ()
